@@ -10,5 +10,5 @@
 ![GitHub last commit](https://img.shields.io/github/last-commit/yakisyst3m/OSR-Outils_de_Securisation_RedHat) ![GitHub release-date](https://img.shields.io/github/release-date/yakisyst3m/Outils_de_Securisation_RedHat)
 
 ## 1 - Présentation :  
-  
+- Script permettant la sécurisation d'une distribution RedHat suite à son installation  
 
