@@ -12,3 +12,6 @@
 ## 1 - Présentation :  
 - Script permettant la sécurisation d'une distribution RedHat suite à son installation  
 
+<p align="center">
+<img src="/img/osr.png" alt="OSR MENU" width="700"/>
+</p>
