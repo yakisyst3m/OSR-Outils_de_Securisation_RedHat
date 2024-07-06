@@ -6,6 +6,7 @@
 # 2022 03 12    v1.0-beta    début menu + fonctions + SSH en cours
 # 2022 03 14    v1.0-beta    Modif varivales du début + config IPv4 + SSH + couleurs + checks à chaque étape
 # 2022 03 15    v1.0-beta    menu 1 2 3 4 5 6 ont été modifiés puis testés
+# 2024 07 06    v1.1         Modif des controles
 
 #SOMMAIRE
 #---------
@@ -45,74 +46,83 @@
 
 #FONCTIONS
 #----------
-    function modifIpMaskGw() {
-        # Configuration IPv4
+	function modifIpMaskGw() {
+		# Configuration IPv4
         # --------------------
-        echo -e "\n${bleu}[ ---- Configuration réseau en IPv4 ---- ]${neutre}\n"
-        echo -e "Les paramètres IP actuelles : "
-        ip a
-        echo -e "\n${violet}Ces paramètres vous conviennent-ils ? ( y pour quitter la config IP / n pour changer les IP )${neutre}\n"
-        read choixip
-        if [ "$choixip" = n ] ; then
-            read -p "Entrer une adresse IP STATIQUE : " IPV4SRV
-            read -p "Entrer le masque réseau : " NETMASK
-            read -p "Voulez-vous configurer une adresse de passerelle ? ( y / n ) : " validegw
-            
-            if [ "$validegw" = "y" ] ; then
-                read -p "Entrer l'adresse IP de la passerelle : " GW
-            fi
-            
-            if [ -f "$ETHCHEMIN" ] ; then
-                sed -ri "s/^(|#)ONBOOT=.{1,}/ONBOOT=yes/" $ETHCHEMIN
-                IPDHCP=$(grep -E "^(|#)BOOTPROTO=(dhcp|static|)" $ETHCHEMIN)
-                if [ "$IPDHCP" = "BOOTPROTO=dhcp" ] ; then 
-                    read -p "Vous êtes en DHCP, voulez-vous rester en DHCP ? ( y pour DHCP / n pour STATIC) : " DHCPREPONSE
-                    if [ "$DHCPREPONSE" = "n"  ] ; then
-                        sed -ri "s/^(|#)BOOTPROTO=(dhcp|static|)/BOOTPROTO=static/" $ETHCHEMIN
-                        sed -i "/BOOTPROTO=static/a ADDRESS=$IPV4SRV\nNETMASK=$NETMASK\n#GATEWAY=$GW" $ETHCHEMIN && echo -e "\n${vert}[ OK ]\nIP=$IPV4SRV\nNETMASK=$NETMASK\n#GATEWAY=$GW ${neutre}\n" || echo -e "\n${rouge}[ NOK ] - Erreur dans le fichier $ETHCHEMIN ${neutre}\n"
-                    fi
-                elif [ "$IPDHCP" = "BOOTPROTO=static" ] ; then 
-                    sed -ri "s/^(|#)BOOTPROTO=(dhcp|static|)/BOOTPROTO=static/" $ETHCHEMIN
-                    sed -i "/BOOTPROTO=static/a ADDRESS=$IPV4SRV\nNETMASK=$NETMASK\n#GATEWAY=$GW" $ETHCHEMIN && echo -e "\n${vert}[ OK ]\nIP=$IPV4SRV\nNETMASK=$NETMASK\n#GATEWAY=$GW ${neutre}\n" || echo -e "\n${rouge}[ NOK ] - Erreur dans le fichier $ETHCHEMIN ${neutre}\n"
-                fi
-            else
-                #mkdir $ETHCHEMIN
-                echo -e "\n${rouge}[ NOK - ]Le chemin de la carte réseau n'existe pas vérifier les paramètres réseaux : ${neutre}\n"
-                ip a | grep $IPV4SRV -A3
-                echo -e "- La carte réseau Ethernet est-elle présente ?\n- Est-elle bien connectée physiquement ?\n- Vérifier sur Internet l'existence d'un pilote."
-                echo -e "\n${rouge} Fin de la configuration IP : les paramètres IP n'ont pas été changé car une erreur existe sur la connectivité physique.${neutre}\n"
-            fi
-        else
-            echo -e "${violet}--- Fin des paramètres IP ---${neutre}\n"
-        fi
-            # "TYPE=Ethernet\nPROXY_METHOD=none\nBROWSER_ONLY=no\nBOOTPROTO=static\nADDRESS=$IPV4SRV\nNETMASK=$NETMASK\n#GATEWAY=$GW\nIPV4_FAILURE_FATAL=no\nDEFROUTE=yes\nNAME=$ETHNAME\nDEVICE=$ETHNAME\nUUID=$ETHUUID\nONBOOT=yes" >> $ETHCHEMIN
-    }
+		echo -e "\n${bleu}[ ---- Configuration réseau en IPv4 ---- ]${neutre}\n"
+		echo -e "Les paramètres IP actuels : "
+		ip a
+		echo -e "\n${violet}Ces paramètres vous conviennent-ils ? ( y pour quitter la config IP / n pour changer les IP )${neutre}\n"
+		
+		read -r choixip
+		if [[ "$choixip" == "n" ]]; then
+			read -p "Entrer une adresse IP STATIQUE : " IPV4SRV
+			read -p "Entrer le masque réseau : " NETMASK
+			read -p "Voulez-vous configurer une adresse de passerelle ? ( y / n ) : " validegw
 
-    #--------------------------------------------------
+			GW=""
+			if [[ "$validegw" == "y" ]]; then
+				read -p "Entrer l'adresse IP de la passerelle : " GW
+			fi
 
-    function restartRZO() {
-        # Redémarrage service réseau
-        # ----------------------------
-        echo -e "\n${bleu}[ ---- Redémarrage des services réseaux ---- ]${neutre}\n"
-        systemctl restart NetworkManager && echo -e "\n${vert}[ OK ] - Service réseau redémarré ${neutre}\n" || echo -e "\n${rouge}[ NOK ] - Erreur de service réseau ${neutre}\n"
-    }
+			if [[ -f "$ETHCHEMIN" ]]; then
+				sed -ri "s/^(|#)ONBOOT=.{1,}/ONBOOT=yes/" "$ETHCHEMIN"
+				IPDHCP=$(grep -E "^(|#)BOOTPROTO=(dhcp|static|)" "$ETHCHEMIN")
+				
+				if [[ "$IPDHCP" = "BOOTPROTO=dhcp" ]]; then 
+					read -p "Vous êtes en DHCP, voulez-vous rester en DHCP ? ( y pour DHCP / n pour STATIC) : " DHCPREPONSE
+					if [[ "$DHCPREPONSE" == "n" ]]; then
+						sed -ri "s/^(|#)BOOTPROTO=(dhcp|static|)/BOOTPROTO=static/" "$ETHCHEMIN"
+						if ! sed -i "/BOOTPROTO=static/a ADDRESS=$IPV4SRV\nNETMASK=$NETMASK\n#GATEWAY=$GW" "$ETHCHEMIN"; then
+							echo -e "\n${rouge}[ NOK ] - Erreur dans le fichier $ETHCHEMIN ${neutre}\n"
+							return 1
+						fi
+						echo -e "\n${vert}[ OK ]\nIP=$IPV4SRV\nNETMASK=$NETMASK\n#GATEWAY=$GW ${neutre}\n"
+					fi
+				elif [[ "$IPDHCP" = "BOOTPROTO=static" ]]; then 
+					sed -ri "s/^(|#)BOOTPROTO=(dhcp|static|)/BOOTPROTO=static/" "$ETHCHEMIN"
+					if ! sed -i "/BOOTPROTO=static/a ADDRESS=$IPV4SRV\nNETMASK=$NETMASK\n#GATEWAY=$GW" "$ETHCHEMIN"; then
+						echo -e "\n${rouge}[ NOK ] - Erreur dans le fichier $ETHCHEMIN ${neutre}\n"
+						return 1
+					fi
+					echo -e "\n${vert}[ OK ]\nIP=$IPV4SRV\nNETMASK=$NETMASK\n#GATEWAY=$GW ${neutre}\n"
+				fi
+			else
+				echo -e "\n${rouge}[ NOK - ]Le chemin de la carte réseau n'existe pas vérifier les paramètres réseaux : ${neutre}\n"
+				ip a | grep "$IPV4SRV" -A3
+				echo -e "- La carte réseau Ethernet est-elle présente ?\n- Est-elle bien connectée physiquement ?\n- Vérifier sur Internet l'existence d'un pilote."
+				echo -e "\n${rouge} Fin de la configuration IP : les paramètres IP n'ont pas été changés car une erreur existe sur la connectivité physique.${neutre}\n"
+			fi
+		else
+			echo -e "${violet}--- Fin des paramètres IP ---${neutre}\n"
+		fi
+	}
 
-    #--------------------------------------------------
+		#--------------------------------------------------
 
-    function testINTERNET() {
-        # Test de connectivité Internet
-        # -------------------------------
-        echo -e "\n${bleu}[ ---- Test réseau ---- ]${neutre}\n"
-        ping -c1 $IPV4INTERNETDNS
-        TEST1=$?
-        if [ $TEST1 -eq 0 ] ; then
-            echo -e "${vert} [ OK ] Réseau Internet opérationnel : poursuite de la configuration ${neutre}"
-            sleep 2
-        else
-            echo -e "${rouge} [ NOK ] Vérifier le réseau ${neutre}"
-            echo "Arrêt du script dans 5 secondes"
-            exit
-        fi
+	function restartRZO() {
+		# Redémarrage service réseau
+		# ----------------------------
+		echo -e "\n${bleu}[ ---- Redémarrage des services réseaux ---- ]${neutre}\n"
+		systemctl restart NetworkManager && echo -e "\n${vert}[ OK ] - Service réseau redémarré ${neutre}\n" || echo -e "\n${rouge}[ NOK ] - Erreur de service réseau ${neutre}\n"
+	}
+
+		#--------------------------------------------------
+
+	function testINTERNET() {
+		# Test de connectivité Internet
+		# -------------------------------
+		echo -e "\n${bleu}[ ---- Test réseau ---- ]${neutre}\n"
+		ping -c1 $IPV4INTERNETDNS
+		TEST1=$?
+		if [ $TEST1 -eq 0 ] ; then
+			echo -e "${vert} [ OK ] Réseau Internet opérationnel : poursuite de la configuration ${neutre}"
+			sleep 2
+		else
+			echo -e "${rouge} [ NOK ] Vérifier le réseau ${neutre}"
+			echo "Arrêt du script dans 5 secondes"
+			exit
+		fi
     }
 
     #--------------------------------------------------
